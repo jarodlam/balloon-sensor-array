@@ -10,7 +10,7 @@
 #include "Adafruit_Sensor.h"
 #include "Adafruit_BME280.h"
 #include "Adafruit_MPU6050.h"
-#include "DHT_U.h"
+#include "dht.h"
 
 #include "esp_camera.h"
 #define CAMERA_MODEL_AI_THINKER
@@ -43,7 +43,7 @@
 #define CAMERA_EVERY_NUM_LOOPS 10
 
 // Create sensor objects
-DHT_Unified dht(DHTPIN, DHTTYPE);
+dht DHT;
 Adafruit_MPU6050 mpu;
 Adafruit_BME280 bme;
 
@@ -72,9 +72,6 @@ void setup() {
 
   // Init I2C
   Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
-
-  // Init DHT22
-  dht.begin();
 
   // Init MPU6050
   bool mpuStatus = mpu.begin(MPU6050_I2CADDR_DEFAULT, &Wire);
@@ -126,8 +123,7 @@ void setup() {
 
 void loop() {
   // Get DHT22 readings
-  sensors_event_t dhtT;
-  dht.temperature().getEvent(&dhtT);
+  int dhtChk = DHT.read22(DHTPIN);
   
   // Get MPU6050 readings
   sensors_event_t mpuA, mpuG, mpuT;
@@ -140,11 +136,15 @@ void loop() {
   bme.getHumiditySensor()->getEvent(&bmeH);
 
   // Print readings
-  sendSensorValue("Temp1", dhtT.temperature);
+  if (dhtChk == DHTLIB_OK) {
+    sendSensorValue("Temp1", DHT.temperature);
+  }
   sendSensorValue("Temp2", bmeT.temperature);
   sendSensorValue("Temp3", mpuT.temperature);
   
-  sendSensorValue("Hum1", dhtT.relative_humidity);
+  if (dhtChk == DHTLIB_OK) {
+    sendSensorValue("Temp1", DHT.humidity);
+  }
   sendSensorValue("Hum2", bmeH.relative_humidity);
 
   sendSensorValue("AccelX", mpuA.acceleration.x);
