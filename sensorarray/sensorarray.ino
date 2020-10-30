@@ -1,7 +1,6 @@
 /**
  * sensorarray.ino
  * Firmware for balloon/glider hybrid ESP32-CAM sensor array
- * Requires Adafruit Unified Sensor, MPU6050, DHT, and BME280 libraries
  * 
  * Jarod Lam 2020
  */
@@ -47,7 +46,8 @@ dht DHT;
 Adafruit_MPU6050 mpu;
 Adafruit_BME280 bme;
 
-// Create loop counter for camera
+// Create camera parameters
+camera_config_t config;
 int loopCounter = 0;
 
 // Puts ESP32 into low-power mode for duration microseconds
@@ -80,14 +80,12 @@ void setup() {
   }
 
   // Init BME280
-  //bool bmeStatus = bme.begin(BME280_ADDRESS, &Wire);
-  bool bmeStatus = bme.begin(0x76, &Wire);
+  bool bmeStatus = bme.begin(BME280_ADDRESS, &Wire);
   if (!bmeStatus) {
     Serial.println("Failed to find BME280!");
   }
 
-  // Init camera
-  camera_config_t config;
+  // Init camera config
   config.ledc_channel = LEDC_CHANNEL_0;
   config.ledc_timer = LEDC_TIMER_0;
   config.pin_d0 = Y2_GPIO_NUM;
@@ -111,11 +109,6 @@ void setup() {
   config.frame_size = FRAMESIZE_VGA; // QVGA,CIF,VGA,SVGA,XGA,SXGA,UXGA
   config.jpeg_quality = 10;          // 10,12
   config.fb_count = 2;
-  esp_err_t err = esp_camera_init(&config);
-  if (err != ESP_OK) {
-    Serial.printf("Camera init failed with error 0x%x", err);
-    return;
-  }
   
   // Wait for serial to finish
   delay(100);
@@ -143,9 +136,11 @@ void loop() {
   sendSensorValue("Temp3", mpuT.temperature);
   
   if (dhtChk == DHTLIB_OK) {
-    sendSensorValue("Temp1", DHT.humidity);
+    sendSensorValue("Hum1", DHT.humidity);
   }
   sendSensorValue("Hum2", bmeH.relative_humidity);
+  
+  sendSensorValue("Press", bmeP.pressure);
 
   sendSensorValue("AccelX", mpuA.acceleration.x);
   sendSensorValue("AccelY", mpuA.acceleration.y);
@@ -159,6 +154,15 @@ void loop() {
   loopCounter++;
   if (loopCounter > CAMERA_EVERY_NUM_LOOPS) {
     loopCounter = 0;
+
+    // Init camera
+    digitalWrite(PWDN_GPIO_NUM, HIGH);
+    delay(10);
+    esp_err_t err = esp_camera_init(&config);
+    if (err != ESP_OK) {
+      Serial.printf("Camera init failed with error 0x%x", err);
+      return;
+    }
 
     // Get image from framebuffer
     camera_fb_t *fb = esp_camera_fb_get();
@@ -174,10 +178,13 @@ void loop() {
     Serial.println(IMAGE_END_STRING);
     Serial.println();
 
+    // Cleanup
     esp_camera_fb_return(fb);
+    esp_camera_deinit();
+    digitalWrite(PWDN_GPIO_NUM, LOW);
   }
   
-  // Wait for serial to finish, then sleep
-  delay(1000);
-  //lightSleep(SLEEP_DURATION);
+  // Wait for serial to finish and sleep
+  delay(50);
+  lightSleep(SLEEP_DURATION);
 }

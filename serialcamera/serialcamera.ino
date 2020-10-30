@@ -1,14 +1,46 @@
+/**
+ * serialcamera.ino
+ * Test ESP-32 JPEG image parameters over serial
+ * 
+ * Jarod Lam 2020
+ */
+
 #include "esp_camera.h"
 
 #define CAMERA_MODEL_AI_THINKER
 #include "camera_pins.h"
+
+#define NUM_FRAMESIZES 7
+#define NUM_QUALITIES 2
+
+// Camera stuff
+camera_config_t config;
+framesize_t frameSizes[] = {FRAMESIZE_QVGA, FRAMESIZE_CIF,
+  FRAMESIZE_VGA, FRAMESIZE_SVGA, FRAMESIZE_XGA, 
+  FRAMESIZE_SXGA, FRAMESIZE_UXGA};
+int qualities[] = {10, 12};
+
+// Serial settings
+#define SERIAL_START_STRING "<"
+#define SERIAL_END_STRING ">"
+#define SERIAL_DELIMITER ":"
+#define IMAGE_START_STRING "START JPEG IMAGE"
+#define IMAGE_END_STRING "END JPEG IMAGE"
+
+// Send sensor value over serial using standard format <Key:Value>
+void sendSensorValue(const char* key, float value) {
+  Serial.print(SERIAL_START_STRING);
+  Serial.print(key);
+  Serial.print(SERIAL_DELIMITER);
+  Serial.print(value);
+  Serial.println(SERIAL_END_STRING);
+}
 
 void setup() {
   Serial.begin(115200);
   Serial.setDebugOutput(true);
   Serial.println();
 
-  camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
   config.ledc_timer = LEDC_TIMER_0;
   config.pin_d0 = Y2_GPIO_NUM;
@@ -29,11 +61,8 @@ void setup() {
   config.pin_reset = RESET_GPIO_NUM;
   config.xclk_freq_hz = 20000000;
   config.pixel_format = PIXFORMAT_JPEG;
-  
-  // Image format options
-  // Frame size options: QVGA|CIF|VGA|SVGA|XGA|SXGA|UXGA
-  config.frame_size = FRAMESIZE_VGA; 
-  config.jpeg_quality = 10;
+  config.frame_size = FRAMESIZE_UXGA; 
+  config.jpeg_quality = 0;
   config.fb_count = 2;
 
   esp_err_t err = esp_camera_init(&config);
@@ -41,23 +70,57 @@ void setup() {
     Serial.printf("Camera init failed with error 0x%x", err);
     return;
   }
+  esp_camera_deinit();
+  
+  digitalWrite(PWDN_GPIO_NUM, LOW);
+  delay(50);
+  digitalWrite(PWDN_GPIO_NUM, HIGH);
+  delay(50);
+
 }
 
 void loop() {
-  camera_fb_t *fb = esp_camera_fb_get();
-  const char *fbData = (const char *)fb->buf;
-  size_t fbLen = fb->len;
 
-  Serial.print("imageSize:");
-  Serial.println(fbLen);
-  Serial.println("START JPEG IMAGE");
-  for (int i = 0; i < fbLen; i++) {
-    Serial.print(fbData[i]);
+  for (int q = 0; q < NUM_QUALITIES; q++) {
+    for (int f = 0; f < NUM_FRAMESIZES; f++) {
+      // Parameters to test
+      config.frame_size = frameSizes[f]; 
+      config.jpeg_quality = qualities[q];
+
+      sendSensorValue("FrameSize", frameSizes[f]);
+      sendSensorValue("Quality", qualities[q]);
+
+      // Init camera
+      esp_err_t err = esp_camera_init(&config);
+      if (err != ESP_OK) {
+        Serial.printf("Camera init failed with error 0x%x", err);
+        return;
+      }
+
+      // Take photo
+      camera_fb_t *fb = esp_camera_fb_get();
+      const char *fbData = (const char *)fb->buf;
+      size_t fbLen = fb->len;
+
+      // Send image over serial
+      sendSensorValue("ImgBytes", fbLen);
+      Serial.println(IMAGE_START_STRING);
+      for (int i = 0; i < fbLen; i++) {
+        Serial.print(fbData[i]);
+      }
+      Serial.println(IMAGE_END_STRING);
+      Serial.println();
+
+      // Cleanup
+      esp_camera_fb_return(fb);
+      esp_camera_deinit();
+      
+      digitalWrite(PWDN_GPIO_NUM, LOW);
+      delay(50);
+      digitalWrite(PWDN_GPIO_NUM, HIGH);
+      delay(50);
+    }
   }
-  Serial.println("END JPEG IMAGE");
-  Serial.println();
-
-  esp_camera_fb_return(fb);
-
+  
   delay(1000);
 }
