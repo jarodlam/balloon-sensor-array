@@ -32,20 +32,37 @@
 // BME280 settings
 #define SEALEVELPRESSURE_HPA (1013.25)
 
+// Serial settings
+#define SERIAL_START_STRING "<"
+#define SERIAL_END_STRING ">"
+#define SERIAL_DELIMITER ":"
+#define IMAGE_START_STRING "START JPEG IMAGE"
+#define IMAGE_END_STRING "END JPEG IMAGE"
+
 // Camera settings
 #define CAMERA_EVERY_NUM_LOOPS 10
-int loopCounter = 0;
 
 // Create sensor objects
 DHT_Unified dht(DHTPIN, DHTTYPE);
 Adafruit_MPU6050 mpu;
 Adafruit_BME280 bme;
 
+// Create loop counter for camera
+int loopCounter = 0;
 
 // Puts ESP32 into low-power mode for duration microseconds
 void lightSleep(long duration) {
-    esp_sleep_enable_timer_wakeup(duration);
-    esp_light_sleep_start();
+  esp_sleep_enable_timer_wakeup(duration);
+  esp_light_sleep_start();
+}
+
+// Send sensor value over serial using standard format <Key:Value>
+void sendSensorValue(const char* key, float value) {
+  Serial.print(SERIAL_START_STRING);
+  Serial.print(key);
+  Serial.print(SERIAL_DELIMITER);
+  Serial.print(value);
+  Serial.println(SERIAL_END_STRING);
 }
 
 void setup() {
@@ -123,31 +140,20 @@ void loop() {
   bme.getHumiditySensor()->getEvent(&bmeH);
 
   // Print readings
-  Serial.print("Temp1:");
-  Serial.println(dhtT.temperature);
-  Serial.print("Temp2:");
-  Serial.println(bmeT.temperature);
-  Serial.print("Temp3:");
-  Serial.println(mpuT.temperature);
-
-  Serial.print("Hum1:");
-  Serial.println(dhtT.relative_humidity);
-  Serial.print("Hum2:");
-  Serial.println(bmeH.relative_humidity);
-
-  Serial.print("AccelX:");
-  Serial.println(mpuA.acceleration.x);
-  Serial.print("AccelY:");
-  Serial.println(mpuA.acceleration.y);
-  Serial.print("AccelZ:");
-  Serial.println(mpuA.acceleration.z);
+  sendSensorValue("Temp1", dhtT.temperature);
+  sendSensorValue("Temp2", bmeT.temperature);
+  sendSensorValue("Temp3", mpuT.temperature);
   
-  Serial.print("GyroX:");
-  Serial.println(mpuG.gyro.x);
-  Serial.print("GyroY:");
-  Serial.println(mpuG.gyro.y);
-  Serial.print("GyroZ:");
-  Serial.println(mpuG.gyro.z);
+  sendSensorValue("Hum1", dhtT.relative_humidity);
+  sendSensorValue("Hum2", bmeH.relative_humidity);
+
+  sendSensorValue("AccelX", mpuA.acceleration.x);
+  sendSensorValue("AccelY", mpuA.acceleration.y);
+  sendSensorValue("AccelZ", mpuA.acceleration.z);
+
+  sendSensorValue("GyroX", mpuG.gyro.x);
+  sendSensorValue("GyroY", mpuG.gyro.y);
+  sendSensorValue("GyroZ", mpuG.gyro.z);
 
   // Take picture every n loops
   loopCounter++;
@@ -160,13 +166,12 @@ void loop() {
     size_t fbLen = fb->len;
 
     // Send image over serial
-    Serial.print("ImgBytes:");
-    Serial.println(fbLen);
-    Serial.println("START JPEG IMAGE");
+    sendSensorValue("ImgBytes", fbLen);
+    Serial.println(IMAGE_START_STRING);
     for (int i = 0; i < fbLen; i++) {
       Serial.print(fbData[i]);
     }
-    Serial.println("END JPEG IMAGE");
+    Serial.println(IMAGE_END_STRING);
     Serial.println();
 
     esp_camera_fb_return(fb);
