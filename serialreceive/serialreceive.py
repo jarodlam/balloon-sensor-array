@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 import serial
 import datetime
+import csv
 
 # Options
-# SERIAL_PORT = "/dev/cu.usbmodem14101"
-SERIAL_PORT = "/dev/cu.usbserial-AR0K0FDK"
+# SERIAL_PORT = "/dev/cu.usbmodem14101"         # Arduino Uno
+# SERIAL_PORT = "/dev/cu.usbserial-AR0K0FDK"    # FTDI Basic
+SERIAL_PORT = "/dev/cu.usbserial-D3070O11"    # Base station
 SERIAL_BAUDRATE = 115200
 IMAGE_MAX_SIZE = 300000
 IMAGE_START_STRING = "START JPEG IMAGE"
@@ -20,10 +22,10 @@ def stringInBytes(byteStream, stringKey):
     except:
         return False
 
-def writeBytesToFile(filename, bytes):
+def writeBytesToFile(filename, bytestream):
     """Write a byte array to file"""
     with open(filename, 'w+b') as f:
-        f.write(buf)
+        f.write(bytestream)
 
 def readSensorValue(line):
     """Parse a sensor value from serial"""
@@ -51,26 +53,38 @@ def readImage(ser):
 
     return buf
 
-# Main code
-with serial.Serial(SERIAL_PORT, SERIAL_BAUDRATE, timeout=30) as ser:
-    while True:
-        line = ser.readline()
-        
-        # Normal mode
-        if stringInBytes(line, SERIAL_START_STRING):
-            (key, value) = readSensorValue(line.decode())
-            print(key, value)
-        
-        # Image mode
-        elif stringInBytes(line, IMAGE_START_STRING):
-            filename = datetime.datetime.now().strftime("%Y-%m-%dT%H.%M.%S.jpg")
-            buf = readImage(ser)
-            print("Writing to {}...".format(filename))
-            writeBytesToFile(filename, buf)
+def currentDatetimestamp():
+    return datetime.datetime.now().strftime("%Y-%m-%dT%H.%M.%S")
 
-        # Garbage mode, just print the stuff
-        else:
-            try:
-                print("{} > {}".format(SERIAL_PORT, line.decode()), end="")
-            except:
-                pass
+def currentTimestamp():
+    return datetime.datetime.now().strftime("%H:%M:%S")
+
+# Main code
+outfilename = currentDatetimestamp() + ".csv";
+
+with serial.Serial(SERIAL_PORT, SERIAL_BAUDRATE, timeout=30) as ser:
+    with open(outfilename, 'w', newline='') as csvfile:
+        csvWriter = csv.writer(csvfile)
+        
+        while True:
+            line = ser.readline()
+        
+            # Normal mode
+            if stringInBytes(line, SERIAL_START_STRING):
+                (key, value) = readSensorValue(line.decode())
+                print(key, value)
+                csvWriter.writerow([currentTimestamp(), key, value]);
+        
+            # Image mode
+            elif stringInBytes(line, IMAGE_START_STRING):
+                filename = currentDatetimestamp() + ".jpg"
+                buf = readImage(ser)
+                print("Writing to {}...".format(filename))
+                writeBytesToFile(filename, buf)
+
+            # Garbage mode, just print the stuff
+            else:
+                try:
+                    print("{} > {}".format(SERIAL_PORT, line.decode()), end="")
+                except:
+                    pass

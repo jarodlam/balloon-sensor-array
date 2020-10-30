@@ -1,3 +1,4 @@
 .vscode
 serialcamera/*.jpg
 serialreceive/*.jpg
+serialreceive/*.csv
