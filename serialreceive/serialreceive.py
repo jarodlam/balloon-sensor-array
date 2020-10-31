@@ -4,9 +4,9 @@ import datetime
 import csv
 
 # Options
-# SERIAL_PORT = "/dev/cu.usbmodem14101"         # Arduino Uno
-# SERIAL_PORT = "/dev/cu.usbserial-AR0K0FDK"    # FTDI Basic
-SERIAL_PORT = "/dev/cu.usbserial-D3070O11"    # Base station
+SERIAL_PORT = "/dev/cu.usbmodem14101"         # Arduino Uno
+#SERIAL_PORT = "/dev/cu.usbserial-AR0K0FDK"    # FTDI Basic
+#SERIAL_PORT = "/dev/cu.usbserial-D3070O11"    # Base station
 SERIAL_BAUDRATE = 115200
 IMAGE_MAX_SIZE = 300000
 IMAGE_START_STRING = "START JPEG IMAGE"

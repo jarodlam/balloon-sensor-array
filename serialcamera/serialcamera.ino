@@ -18,7 +18,7 @@ camera_config_t config;
 framesize_t frameSizes[] = {FRAMESIZE_QVGA, FRAMESIZE_CIF,
   FRAMESIZE_VGA, FRAMESIZE_SVGA, FRAMESIZE_XGA, 
   FRAMESIZE_SXGA, FRAMESIZE_UXGA};
-int qualities[] = {10, 12};
+int qualities[] = {10, 30};
 
 // Serial settings
 #define SERIAL_START_STRING "<"
@@ -96,6 +96,11 @@ void loop() {
         Serial.printf("Camera init failed with error 0x%x", err);
         return;
       }
+      sensor_t * s = esp_camera_sensor_get();
+      //s->set_brightness(s, -1);
+      //s->set_contrast(s, 0);
+      s->set_exposure_ctrl(s, 0);
+      //s->set_aec2(s, 1);
 
       // Take photo
       camera_fb_t *fb = esp_camera_fb_get();

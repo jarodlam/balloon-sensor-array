@@ -106,7 +106,7 @@ void setup() {
   config.pin_reset = RESET_GPIO_NUM;
   config.xclk_freq_hz = 20000000;
   config.pixel_format = PIXFORMAT_JPEG;
-  config.frame_size = FRAMESIZE_VGA; // QVGA,CIF,VGA,SVGA,XGA,SXGA,UXGA
+  config.frame_size = FRAMESIZE_SXGA; // QVGA,CIF,VGA,SVGA,XGA,SXGA,UXGA
   config.jpeg_quality = 10;          // 10,12
   config.fb_count = 2;
   
@@ -163,6 +163,8 @@ void loop() {
       Serial.printf("Camera init failed with error 0x%x", err);
       return;
     }
+    //s->set_whitebal(s, 1);
+    //s->set_gain_ctrl(s, 1);
 
     // Get image from framebuffer
     camera_fb_t *fb = esp_camera_fb_get();
